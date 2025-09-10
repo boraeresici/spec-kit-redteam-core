@@ -31,6 +31,7 @@ from ..templates.template_engine import TemplateManager, TemplateNotFoundError, 
 from ..templates.recommendation_engine import TemplateRecommendationEngine
 from ..caching.semantic_cache import get_cache_manager, get_cached_response, cache_response
 from .template_cli import app as template_app
+from .specification_wizard import run_specification_wizard, ProjectConfiguration
 
 
 app = typer.Typer(name="collab", help="Multi-Agent Collaborative AI")
@@ -781,6 +782,208 @@ def migrate_version(
 def show_recovery_stats():
     """Show error recovery statistics"""
     recovery_manager.show_recovery_stats()
+
+
+@app.command("wizard")
+def interactive_wizard(
+    resume: Optional[str] = typer.Option(None, "--resume", "-r", help="Resume session ID"),
+    auto_generate: bool = typer.Option(False, "--generate", "-g", help="Auto-start generation after wizard")
+):
+    """Interactive specification wizard with guided setup and auto-generation."""
+    
+    console.print(Panel.fit(
+        "[bold cyan]🧙‍♂️ RedTeam Interactive Specification Wizard[/bold cyan]\n" +
+        "Complete guided setup with automatic specification generation",
+        border_style="blue",
+        title="Welcome"
+    ))
+    
+    try:
+        # Run the wizard
+        config = run_specification_wizard(resume)
+        
+        if not config:
+            console.print("[yellow]Wizard was cancelled or interrupted.[/yellow]")
+            return
+        
+        console.print("\n[bold green]🎉 Wizard completed successfully![/bold green]")
+        
+        # Show configuration summary
+        _display_wizard_summary(config)
+        
+        # Auto-generate if requested or ask user
+        should_generate = auto_generate or typer.confirm(
+            "\n[bold]Start specification generation now?[/bold]",
+            default=True
+        )
+        
+        if should_generate:
+            console.print("\n[bold cyan]🚀 Starting specification generation...[/bold cyan]")
+            
+            # Convert wizard config to generate parameters
+            template_id = config.selected_template if config.selected_template else None
+            
+            # Run generation using existing generate command logic
+            asyncio.run(_run_wizard_generation(
+                description=config.project_description,
+                agents=config.selected_agents,
+                budget=config.max_budget,
+                template_id=template_id,
+                quality_preference=config.quality_preference,
+                time_constraint=config.time_constraint
+            ))
+        else:
+            # Show command to run manually
+            template_arg = f"--template {config.selected_template}" if config.selected_template else ""
+            generate_command = f'specify collab generate {template_arg} --agents {",".join(config.selected_agents)} --budget {config.max_budget:.2f} "{config.project_description}"'
+            
+            console.print(f"\n[bold cyan]📋 Manual Generation Command:[/bold cyan]")
+            console.print(Panel(
+                f"[cyan]{generate_command}[/cyan]",
+                border_style="cyan",
+                title="Copy & Run"
+            ))
+    
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Wizard interrupted.[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Wizard error: {e}[/red]")
+
+
+def _display_wizard_summary(config: ProjectConfiguration):
+    """Display wizard configuration summary"""
+    
+    summary_table = Table(title="🎯 Wizard Configuration Summary")
+    summary_table.add_column("Setting", style="bold cyan")
+    summary_table.add_column("Value", style="white")
+    
+    summary_table.add_row("Project Name", config.project_name)
+    summary_table.add_row("Project Type", config.project_type.replace("_", " ").title())
+    summary_table.add_row("Technologies", ", ".join(config.technologies[:3]) + ("..." if len(config.technologies) > 3 else ""))
+    summary_table.add_row("Data Sensitivity", config.data_sensitivity.title())
+    summary_table.add_row("Selected Agents", ", ".join(config.selected_agents))
+    summary_table.add_row("Max Budget", f"${config.max_budget:.2f}")
+    summary_table.add_row("Quality Preference", config.quality_preference.title())
+    
+    if config.compliance_frameworks:
+        summary_table.add_row("Compliance", ", ".join(config.compliance_frameworks))
+    
+    if config.selected_template:
+        template_name = next(
+            (t["template_name"] for t in config.recommended_templates 
+             if t["template_id"] == config.selected_template), 
+            config.selected_template
+        )
+        summary_table.add_row("Template", template_name)
+    
+    console.print(summary_table)
+
+
+async def _run_wizard_generation(
+    description: str,
+    agents: List[str], 
+    budget: float,
+    template_id: Optional[str] = None,
+    quality_preference: str = "balanced",
+    time_constraint: int = 60
+):
+    """Run specification generation with wizard configuration"""
+    
+    # Set up based on quality preference
+    quality_settings = {
+        "speed": {"complexity": "low", "max_agents": 3},
+        "balanced": {"complexity": "medium", "max_agents": 4}, 
+        "quality": {"complexity": "high", "max_agents": 6}
+    }
+    
+    settings = quality_settings.get(quality_preference, quality_settings["balanced"])
+    
+    # Limit agents based on quality preference
+    if len(agents) > settings["max_agents"]:
+        agents = agents[:settings["max_agents"]]
+        console.print(f"[yellow]Limiting to {settings['max_agents']} agents for {quality_preference} quality[/yellow]")
+    
+    # Create token tracker
+    token_tracker = TokenTracker(initial_budget=budget)
+    
+    try:
+        # Use async orchestrator for better performance
+        async with AsyncCollaborativeOrchestrator(
+            token_tracker=token_tracker,
+            enable_caching=True,
+            enable_parallel=True,
+            max_concurrent_agents=min(len(agents), 4)
+        ) as orchestrator:
+            
+            result = await orchestrator.generate_collaborative_spec(
+                description=description,
+                agents=agents,
+                max_budget=budget,
+                complexity=settings["complexity"],
+                enable_streaming=True
+            )
+            
+            # Display results
+            _display_generation_results(result, token_tracker)
+            
+            # Save specification
+            if result.specification:
+                _save_specification_file(result, description)
+            
+    except BudgetExceededException as e:
+        console.print(f"[red]❌ Budget exceeded: {e}[/red]")
+    except Exception as e:
+        console.print(f"[red]❌ Generation failed: {e}[/red]")
+
+
+def _display_generation_results(result: SpecGenerationResult, token_tracker: TokenTracker):
+    """Display generation results summary"""
+    
+    console.print("\n" + "="*70)
+    console.print("[bold green]🎉 Specification Generated Successfully![/bold green]")
+    console.print("="*70)
+    
+    # Results summary
+    results_table = Table(title="📊 Generation Results")
+    results_table.add_column("Metric", style="cyan")
+    results_table.add_column("Value", style="white")
+    
+    results_table.add_row("Quality Score", f"{result.quality_score:.1%}")
+    results_table.add_row("Specification Length", f"{len(result.specification):,} characters")
+    results_table.add_row("Agents Used", str(len(result.agent_responses)))
+    results_table.add_row("Generation Time", f"{result.generation_metadata.get('generation_time', 0):.1f}s")
+    
+    # Token usage
+    token_summary = token_tracker.get_summary()
+    results_table.add_row("Tokens Used", f"{token_summary.get('total_tokens', 0):,}")
+    results_table.add_row("Total Cost", f"${token_summary.get('total_cost', 0):.2f}")
+    results_table.add_row("Budget Remaining", f"${token_tracker.get_remaining_budget():.2f}")
+    
+    console.print(results_table)
+
+
+def _save_specification_file(result: SpecGenerationResult, description: str):
+    """Save generated specification to file"""
+    
+    # Generate filename from description
+    safe_filename = "".join(c for c in description[:30] if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    safe_filename = safe_filename.replace(' ', '_').lower()
+    filename = f"spec_{safe_filename}_{int(time.time())}.md"
+    
+    output_path = Path.cwd() / filename
+    
+    try:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(f"# Security Specification\n\n")
+            f.write(f"**Generated:** {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"**Description:** {description}\n\n")
+            f.write("---\n\n")
+            f.write(result.specification)
+        
+        console.print(f"\n💾 [green]Specification saved to:[/green] [cyan]{output_path}[/cyan]")
+    
+    except Exception as e:
+        console.print(f"[yellow]⚠️  Could not save specification: {e}[/yellow]")
 
 
 @app.command("cache")

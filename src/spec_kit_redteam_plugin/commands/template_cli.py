@@ -24,6 +24,9 @@ from ..templates.template_engine import (
 from ..templates.recommendation_engine import (
     TemplateRecommendationEngine, TemplateRecommendation
 )
+from .specification_wizard import (
+    SpecificationWizard, run_specification_wizard, ProjectConfiguration
+)
 
 app = typer.Typer(help="Template management and selection commands")
 console = Console()
@@ -369,12 +372,130 @@ def show_template_stats():
 
 
 @app.command("wizard")
+def specification_wizard(
+    resume: Optional[str] = typer.Option(None, "--resume", "-r", help="Resume session ID"),
+    list_sessions: bool = typer.Option(False, "--list", "-l", help="List saved sessions")
+):
+    """Interactive specification generation wizard with multi-step guidance."""
+    
+    wizard = SpecificationWizard()
+    
+    # List sessions if requested
+    if list_sessions:
+        sessions = wizard.list_saved_sessions()
+        
+        if not sessions:
+            console.print("[yellow]No saved wizard sessions found.[/yellow]")
+            return
+        
+        # Display sessions table
+        sessions_table = Table(title="💾 Saved Wizard Sessions")
+        sessions_table.add_column("Session ID", style="cyan")
+        sessions_table.add_column("Project Name", style="bold")
+        sessions_table.add_column("Current Step", style="yellow")
+        sessions_table.add_column("Created", style="dim")
+        sessions_table.add_column("Status", style="green")
+        
+        for session in sessions:
+            sessions_table.add_row(
+                session['session_id'],
+                session['project_name'],
+                session['current_step'],
+                session['created'],
+                session['status']
+            )
+        
+        console.print(sessions_table)
+        
+        # Option to resume a session
+        if Confirm.ask("\nWould you like to resume a session?", default=False):
+            session_id = Prompt.ask("Enter session ID to resume")
+            try:
+                config = wizard.start_wizard(session_id)
+                if config:
+                    _display_wizard_completion(config)
+            except Exception as e:
+                console.print(f"[red]Error resuming session: {e}[/red]")
+        
+        return
+    
+    # Start new wizard or resume existing
+    try:
+        console.print(Panel.fit(
+            "[bold cyan]🧙‍♂️ RedTeam Specification Wizard[/bold cyan]\n" +
+            "Interactive multi-step specification generation with template recommendations",
+            border_style="blue",
+            title="Welcome"
+        ))
+        
+        config = wizard.start_wizard(resume)
+        
+        if config:
+            _display_wizard_completion(config)
+        else:
+            console.print("[yellow]Wizard session was cancelled or interrupted.[/yellow]")
+    
+    except Exception as e:
+        console.print(f"[red]Wizard error: {e}[/red]")
+
+
+def _display_wizard_completion(config: ProjectConfiguration):
+    """Display wizard completion summary and next steps"""
+    
+    console.print("\n" + "="*70)
+    console.print("[bold green]🎉 Specification Wizard Completed![/bold green]")
+    console.print("="*70)
+    
+    # Configuration summary
+    summary_text = Text()
+    summary_text.append("✅ Configuration Summary:\n\n", style="bold green")
+    summary_text.append(f"📋 Project: {config.project_name}\n")
+    summary_text.append(f"🏗️  Type: {config.project_type}\n")
+    summary_text.append(f"🤖 Agents: {', '.join(config.selected_agents)}\n")
+    summary_text.append(f"💰 Budget: ${config.max_budget:.2f}\n")
+    
+    if config.selected_template:
+        template_name = next(
+            (t["template_name"] for t in config.recommended_templates 
+             if t["template_id"] == config.selected_template), 
+            config.selected_template
+        )
+        summary_text.append(f"📄 Template: {template_name}\n")
+    
+    summary_panel = Panel(
+        summary_text,
+        title="[bold]Wizard Results[/bold]",
+        border_style="green",
+        padding=(1, 2)
+    )
+    
+    console.print(summary_panel)
+    
+    # Generate command
+    template_arg = f"--template {config.selected_template}" if config.selected_template else ""
+    generate_command = f'specify collab generate {template_arg} --agents {",".join(config.selected_agents)} --budget {config.max_budget} "{config.project_description}"'
+    
+    console.print(f"\n[bold cyan]🚀 Next Steps:[/bold cyan]")
+    console.print(Panel(
+        f"Run this command to generate your specification:\n\n[cyan]{generate_command}[/cyan]",
+        border_style="cyan",
+        title="Generation Command"
+    ))
+    
+    # Option to run immediately
+    if Confirm.ask("\n[bold]Would you like to start specification generation now?[/bold]", default=True):
+        console.print(f"[dim]Command: {generate_command}[/dim]")
+        console.print("[yellow]🔌 Integration with generation engine pending...[/yellow]")
+        console.print("[dim]You can run the command above manually for now.[/dim]")
+
+
+@app.command("template-wizard")  
 def template_wizard():
-    """Interactive template selection wizard."""
+    """Legacy template selection wizard (simplified version)."""
     
     console.print(Panel.fit(
-        "[bold cyan]🔴 RedTeam Template Selection Wizard[/bold cyan]\n" +
-        "Let's find the perfect security template for your project!",
+        "[bold cyan]🔴 Template Selection Wizard[/bold cyan]\n" +
+        "Quick template recommendation and selection",
         border_style="blue"
     ))
     
@@ -395,7 +516,7 @@ def template_wizard():
         )
         
         # Step 3: Get preferences
-        console.print("\n[bold]Step 3: Preferences[/bold]")
+        console.print("\n[bold]Step 3: Budget[/bold]")
         max_cost = Prompt.ask(
             "Maximum budget for generation (USD)",
             default="10.00"
@@ -407,7 +528,7 @@ def template_wizard():
             max_cost_float = 10.0
         
         # Step 4: Get recommendations
-        console.print(f"\n[bold]Analyzing your project...[/bold]")
+        console.print(f"\n[bold]🔍 Analyzing your project...[/bold]")
         
         template_manager = TemplateManager()
         recommendation_engine = TemplateRecommendationEngine(template_manager)
@@ -466,7 +587,6 @@ def template_wizard():
         
         if Confirm.ask("Would you like to run this command now?"):
             console.print(f"[dim]Running: {generate_command}[/dim]")
-            # Here you would integrate with the main generation command
             console.print("[yellow]Generation integration pending...[/yellow]")
         
     except KeyboardInterrupt:
