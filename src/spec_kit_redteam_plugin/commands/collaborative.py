@@ -29,6 +29,7 @@ from ..version_manager import version_manager
 from ..recovery_manager import recovery_manager, with_recovery
 from ..templates.template_engine import TemplateManager, TemplateNotFoundError, TemplateAccessDeniedError
 from ..templates.recommendation_engine import TemplateRecommendationEngine
+from ..caching.semantic_cache import get_cache_manager, get_cached_response, cache_response
 from .template_cli import app as template_app
 
 
@@ -475,7 +476,7 @@ async def generate_collaborative_spec(
                     result = asyncio.run(
                         run_collaborative_generation(
                             orchestrator, final_description, agents, budget, 
-                            progress_tracker, update_live_progress
+                            progress_tracker, update_live_progress, cache
                         )
                     )
             except BudgetExceededException as e:
@@ -573,8 +574,60 @@ async def run_collaborative_generation(orchestrator: CollaborativeSpecOrchestrat
                                      agents: List[str], 
                                      budget: float,
                                      progress_tracker: LiveProgressTracker,
-                                     update_callback) -> SpecGenerationResult:
-    """Run collaborative generation with progress tracking"""
+                                     update_callback,
+                                     enable_caching: bool = True) -> SpecGenerationResult:
+    """Run collaborative generation with progress tracking and semantic caching"""
+    
+    # Check semantic cache first if enabled
+    if enable_caching:
+        progress_tracker.update_phase("Checking semantic cache...")
+        update_callback()
+        
+        # Prepare request data for caching
+        cache_request = {
+            "description": description,
+            "agents": sorted(agents),  # Sort for consistent caching
+            "budget": budget,
+            "type": "collaborative_generation"
+        }
+        
+        # Try to get cached response
+        cached_result = get_cached_response(cache_request)
+        if cached_result:
+            progress_tracker.update_phase("Found cached result - Token savings achieved!")
+            progress_tracker.update_token_usage({
+                "total_tokens": 0,
+                "total_cost": 0.0,
+                "cache_hit": True,
+                "token_savings": cached_result.get("token_savings", 0)
+            })
+            update_callback()
+            
+            console.print(f"💰 [green]Cache HIT! Saved ~{cached_result.get('token_savings', 0)} tokens[/green]")
+            
+            # Return cached result as SpecGenerationResult
+            from ..orchestrator import SpecGenerationResult, ConsensusResult
+            
+            return SpecGenerationResult(
+                specification=cached_result["specification"],
+                agent_responses=cached_result.get("agent_responses", {}),
+                consensus_result=ConsensusResult(
+                    final_specification=cached_result["specification"],
+                    confidence_score=cached_result.get("consensus_confidence", 0.95),
+                    rounds_completed=cached_result.get("consensus_rounds", 1),
+                    unresolved_conflicts=[]
+                ),
+                quality_score=cached_result.get("quality_score", 0.90),
+                token_summary={
+                    "total_tokens": 0,
+                    "total_cost": 0.0,
+                    "cache_hit": True,
+                    "token_savings": cached_result.get("token_savings", 0),
+                    "operation_count": 1,
+                    "duration_seconds": 1
+                },
+                discussion_log=cached_result.get("discussion_log", [])
+            )
     
     # Custom progress tracking wrapper
     original_gather_responses = orchestrator._gather_initial_responses
@@ -605,6 +658,26 @@ async def run_collaborative_generation(orchestrator: CollaborativeSpecOrchestrat
         agent_names=agents,
         budget_limit=budget
     )
+    
+    # Cache the result if enabled
+    if enable_caching and result.specification:
+        progress_tracker.update_phase("Caching result for future use...")
+        update_callback()
+        
+        # Prepare response data for caching
+        cache_response_data = {
+            "specification": result.specification,
+            "agent_responses": result.agent_responses,
+            "consensus_confidence": result.consensus_result.confidence_score,
+            "consensus_rounds": result.consensus_result.rounds_completed,
+            "quality_score": result.quality_score,
+            "discussion_log": result.discussion_log[:10],  # Limit log size for caching
+            "token_savings": result.token_summary.get("total_tokens", 0)
+        }
+        
+        cache_key = cache_response(cache_request, cache_response_data)
+        if cache_key:
+            console.print(f"💾 [dim]Result cached for future similar requests[/dim]")
     
     progress_tracker.update_phase("Generation complete!")
     progress_tracker.update_token_usage(result.token_summary)
@@ -708,6 +781,62 @@ def migrate_version(
 def show_recovery_stats():
     """Show error recovery statistics"""
     recovery_manager.show_recovery_stats()
+
+
+@app.command("cache")
+def cache_management(
+    action: str = typer.Argument(..., help="Action: stats, clear, optimize"),
+    details: bool = typer.Option(False, "--details", "-d", help="Show detailed cache information")
+):
+    """Manage semantic cache for performance optimization"""
+    
+    cache_manager = get_cache_manager()
+    
+    if action == "stats":
+        stats = cache_manager.get_cache_stats()
+        
+        cache_table = Table(title="💾 Semantic Cache Statistics")
+        cache_table.add_column("Metric", style="cyan")
+        cache_table.add_column("Value", justify="right", style="white")
+        
+        cache_table.add_row("Cache Size", f"{stats['cache_size']:,} entries")
+        cache_table.add_row("Cache Hits", f"{stats['hits']:,}")
+        cache_table.add_row("Cache Misses", f"{stats['misses']:,}")
+        cache_table.add_row("Hit Rate", f"{stats['hit_rate_percent']:.1f}%")
+        cache_table.add_row("Token Savings", f"{stats['token_savings']:,}")
+        cache_table.add_row("Avg Savings/Hit", f"{stats['average_token_savings_per_hit']:,}")
+        cache_table.add_row("Entries Created", f"{stats['entries_created']:,}")
+        cache_table.add_row("Entries Expired", f"{stats['entries_expired']:,}")
+        
+        console.print(cache_table)
+        
+        if details and stats['cache_size'] > 0:
+            # Show savings percentage estimate
+            total_requests = stats['hits'] + stats['misses']
+            if total_requests > 0:
+                savings_pct = (stats['token_savings'] / total_requests) * 100
+                console.print(f"\n💰 [green]Estimated token cost reduction: {savings_pct:.1f}%[/green]")
+            
+            # Show cache efficiency
+            if stats['cache_size'] > 10:
+                console.print(f"📊 [cyan]Cache efficiency: {'High' if stats['hit_rate_percent'] > 30 else 'Medium' if stats['hit_rate_percent'] > 15 else 'Low'}[/cyan]")
+    
+    elif action == "clear":
+        if typer.confirm("Clear all cached responses?"):
+            cache_manager.invalidate_cache()
+            console.print("✅ [green]Cache cleared successfully[/green]")
+        else:
+            console.print("[yellow]Cache clear cancelled[/yellow]")
+    
+    elif action == "optimize":
+        cache_manager.optimize_cache()
+        stats = cache_manager.get_cache_stats()
+        console.print(f"✅ [green]Cache optimized - {stats['cache_size']} entries remaining[/green]")
+    
+    else:
+        console.print(f"[red]Unknown action: {action}[/red]")
+        console.print("Available actions: stats, clear, optimize")
+        raise typer.Exit(1)
 
 
 async def run_async_collaborative_generation(
