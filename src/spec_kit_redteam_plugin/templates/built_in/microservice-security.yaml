@@ -1,0 +1,389 @@
+id: "microservice-security"
+name: "Secure Microservice Architecture"
+description: "Comprehensive security specification for containerized microservice architecture including service mesh, container security, and distributed system protection."
+
+category: "microservice"
+security_frameworks: ["Container_Security", "API_Security", "OWASP"]
+complexity_level: "high"
+tier_required: "free"
+
+required_agents: ["pm", "technical", "security"]
+optional_agents: ["qa", "devops"]
+recommended_agents: ["pm", "technical", "security", "devops"]
+
+estimated_cost: 12.0
+estimated_time_minutes: 120
+
+template_content: |
+  # Secure Microservice Architecture Security Specification
+  
+  ## Executive Summary
+  This specification defines security requirements for a containerized microservice architecture, covering container security, service-to-service communication, distributed authentication, and infrastructure protection. The architecture will implement zero-trust security principles with defense-in-depth strategies.
+  
+  ## Microservice Security Architecture
+  
+  ### 1. Container Security Foundation
+  **Priority: Critical**
+  
+  #### Base Image Security
+  - **Minimal base images** (Alpine Linux, Distroless, or scratch)
+  - **Regular base image updates** with automated vulnerability scanning
+  - **Image signing and verification** using Docker Content Trust
+  - **Multi-stage builds** to minimize attack surface
+  
+  ```yaml
+  Container Security Standards:
+    base_images:
+      - "alpine:3.18" (verified)
+      - "gcr.io/distroless/java17-debian11" (verified)
+      - Custom hardened images with security patches
+    
+    image_scanning:
+      - Trivy vulnerability scanner
+      - Snyk container security
+      - Automated CI/CD security gates
+      - Critical vulnerability blocking threshold
+  ```
+  
+  #### Runtime Security
+  - **Non-root user execution** with minimal privileges
+  - **Read-only root filesystem** where possible
+  - **Resource limits** (CPU, memory, disk) enforcement
+  - **Security contexts** with security profiles
+  
+  ```yaml
+  Pod Security Standards:
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10000
+      runAsGroup: 10000
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+        add: ["NET_BIND_SERVICE"] # if needed
+  ```
+  
+  ### 2. Service Mesh Security
+  **Priority: High**
+  
+  #### Mutual TLS (mTLS) Implementation
+  - **Automatic mTLS** between all services using Istio/Linkerd
+  - **Certificate lifecycle management** with automatic rotation
+  - **Identity-based authentication** using SPIFFE/SPIRE
+  - **Traffic encryption** for all inter-service communication
+  
+  #### Service Identity & Authorization
+  ```yaml
+  Service Identity Framework:
+    - SPIFFE identities for each service
+    - JWT-based service tokens
+    - Fine-grained authorization policies
+    - Service-to-service authentication
+  
+  Authorization Policies:
+    - Default deny-all traffic
+    - Explicit allow rules per service
+    - Path-based access control
+    - Method-specific permissions
+  ```
+  
+  ### 3. API Gateway Security
+  **Priority: High**
+  
+  #### Gateway-Level Protection
+  - **Centralized authentication** and authorization
+  - **Rate limiting** with distributed enforcement
+  - **Request/response filtering** and validation
+  - **DDoS protection** with traffic shaping
+  
+  ```yaml
+  Gateway Security Configuration:
+    authentication:
+      - JWT validation with JWKS
+      - OAuth 2.0 / OIDC integration
+      - API key authentication
+      - mTLS client certificates
+    
+    rate_limiting:
+      - Per-client rate limits
+      - Per-API endpoint limits
+      - Burst protection
+      - Geographic rate limiting
+    
+    security_policies:
+      - Input validation rules
+      - Output sanitization
+      - CORS policy enforcement
+      - Security headers injection
+  ```
+  
+  ### 4. Container Orchestration Security
+  **Priority: Critical**
+  
+  #### Kubernetes Security Hardening
+  - **RBAC (Role-Based Access Control)** with least privilege
+  - **Network policies** for micro-segmentation
+  - **Pod Security Standards** enforcement
+  - **Admission controllers** for security policy validation
+  
+  ```yaml
+  K8s Security Configuration:
+    rbac:
+      - Service-specific roles
+      - Namespace isolation
+      - Minimal cluster permissions
+      - Regular access reviews
+    
+    network_policies:
+      - Default deny ingress/egress
+      - Service-specific allow rules
+      - Namespace isolation
+      - External traffic controls
+    
+    admission_controllers:
+      - PodSecurityPolicy (deprecated) → Pod Security Standards
+      - NetworkPolicy enforcement
+      - Resource quota enforcement
+      - Image policy validation
+  ```
+  
+  #### Secrets Management
+  - **Kubernetes Secrets** with encryption at rest
+  - **External secret management** (HashiCorp Vault, AWS Secrets Manager)
+  - **Secret rotation** automation
+  - **Least privilege access** to secrets
+  
+  ```yaml
+  Secrets Strategy:
+    storage:
+      - External secrets operator
+      - Encrypted etcd storage
+      - In-memory secret mounting
+      - Automatic secret rotation
+    
+    access_control:
+      - Service-specific secret access
+      - Temporary secret credentials
+      - Secret usage auditing
+      - No secrets in container images
+  ```
+  
+  ### 5. Monitoring & Observability Security
+  **Priority: Medium**
+  
+  #### Security Telemetry
+  - **Distributed tracing** with security context
+  - **Security event logging** across all services
+  - **Anomaly detection** for unusual patterns
+  - **Real-time alerting** for security incidents
+  
+  ```yaml
+  Security Monitoring:
+    metrics:
+      - Authentication success/failure rates
+      - Authorization denial patterns
+      - Unusual traffic patterns
+      - Container security events
+      - Service mesh security violations
+    
+    logging:
+      - Centralized log aggregation
+      - Security event correlation
+      - Log integrity protection
+      - Compliance audit trails
+  ```
+  
+  ### 6. Data Protection in Microservices
+  **Priority: High**
+  
+  #### Data Encryption Strategy
+  - **Encryption in transit** via mTLS and HTTPS
+  - **Encryption at rest** for databases and storage
+  - **Field-level encryption** for sensitive data
+  - **Key management** with rotation policies
+  
+  #### Data Privacy & Compliance
+  - **Data classification** and handling policies
+  - **PII protection** with anonymization techniques
+  - **Data retention** policies per service
+  - **Cross-border data transfer** controls
+  
+  ## Security Implementation Phases
+  
+  ### Phase 1: Foundation Security (Weeks 1-4)
+  - Container image hardening and scanning
+  - Basic Kubernetes RBAC setup
+  - Service mesh deployment (Istio/Linkerd)
+  - mTLS configuration between services
+  
+  ### Phase 2: Advanced Protection (Weeks 5-8)
+  - API Gateway security implementation
+  - Network policy micro-segmentation
+  - Secrets management automation
+  - Security monitoring and alerting
+  
+  ### Phase 3: Compliance & Optimization (Weeks 9-12)
+  - Security policy enforcement automation
+  - Compliance audit preparation
+  - Performance optimization of security controls
+  - Incident response procedure testing
+  
+  ## Microservice-Specific Security Patterns
+  
+  ### Service Communication Security
+  ```yaml
+  Communication Patterns:
+    synchronous:
+      - mTLS for HTTP/gRPC calls
+      - JWT token propagation
+      - Circuit breaker patterns
+      - Timeout and retry policies
+    
+    asynchronous:
+      - Message queue encryption
+      - Event schema validation
+      - Message signing/verification
+      - Dead letter queue security
+  ```
+  
+  ### Distributed Authentication
+  - **Token relay patterns** for service chains
+  - **Token refresh mechanisms** for long-running operations
+  - **Service account authentication** for backend services
+  - **User context propagation** across service boundaries
+  
+  ### Fault Tolerance Security
+  - **Graceful degradation** with security maintained
+  - **Circuit breaker patterns** preventing cascade failures
+  - **Bulkhead isolation** limiting blast radius
+  - **Rate limiting** to prevent resource exhaustion
+  
+  ## Container Registry Security
+  
+  ### Registry Hardening
+  ```yaml
+  Registry Security:
+    access_control:
+      - RBAC for image push/pull
+      - Namespace-based permissions
+      - Service account authentication
+      - IP-based access restrictions
+    
+    image_security:
+      - Vulnerability scanning automation
+      - Image signing verification
+      - Malware scanning
+      - License compliance checking
+  ```
+  
+  ## Infrastructure as Code (IaC) Security
+  
+  ### Secure Configuration Management
+  - **Infrastructure templates** with security defaults
+  - **Configuration drift detection**
+  - **Policy as Code** with Open Policy Agent (OPA)
+  - **Automated security compliance** checking
+  
+  ```yaml
+  IaC Security Practices:
+    - Version controlled configurations
+    - Security policy validation in CI/CD
+    - Automated compliance scanning
+    - Configuration encryption
+    - Resource tagging for governance
+  ```
+  
+  ## Testing & Validation
+  
+  ### Security Testing Strategy
+  - [ ] **Container image vulnerability scanning**
+  - [ ] **Kubernetes configuration security testing**
+  - [ ] **Service mesh security validation**
+  - [ ] **API endpoint security testing**
+  - [ ] **Network policy effectiveness testing**
+  - [ ] **Secrets management security review**
+  - [ ] **Distributed authentication testing**
+  - [ ] **Performance impact of security controls**
+  
+  ### Chaos Engineering for Security
+  - **Security chaos experiments** to test resilience
+  - **Certificate rotation testing** under load
+  - **Service isolation effectiveness** during failures
+  - **Security control bypass attempts**
+  
+  ## Compliance & Governance
+  
+  ### Security Standards Compliance
+  - [ ] **CIS Kubernetes Benchmark** compliance
+  - [ ] **NIST Container Security** guidelines
+  - [ ] **OWASP Container Security** best practices
+  - [ ] **ISO 27001** controls for microservices
+  
+  ### Governance Framework
+  - **Security policy enforcement** automation
+  - **Regular security assessments** and audits
+  - **Change management** with security reviews
+  - **Incident response** procedures for microservices
+  
+  ## Success Metrics
+  
+  ### Security KPIs
+  - **Zero successful lateral movement** between services
+  - **100% mTLS coverage** for service communication
+  - **<5 minutes MTTR** for certificate rotation
+  - **Zero secrets in container images** or logs
+  - **100% compliance** with pod security standards
+  
+  ### Performance Metrics
+  - **<10ms additional latency** from security controls
+  - **>99.95% uptime** including security component failures
+  - **Successful chaos engineering** security experiments
+  - **Clean security audit** results quarterly
+
+prompt_template: |
+  Generate a comprehensive microservice security specification for: {project_description}
+  
+  Focus on these microservice security aspects:
+  - Container and runtime security
+  - Service mesh and mTLS configuration
+  - Kubernetes security hardening
+  - API gateway protection
+  - Secrets and configuration management
+  - Distributed monitoring and observability
+  
+  Architecture details: {architecture_details}
+  Service count: {service_count}
+  Expected traffic: {expected_load}
+  Compliance requirements: {compliance_frameworks}
+
+context_variables:
+  project_description: "{{PROJECT_DESCRIPTION}}"
+  architecture_details: "{{ARCHITECTURE_DETAILS}}"
+  service_count: "{{SERVICE_COUNT}}"
+  expected_load: "{{EXPECTED_LOAD}}"
+  compliance_frameworks: "{{COMPLIANCE_FRAMEWORKS}}"
+
+validation_rules:
+  - field: "project_description"
+    rule_type: "required"
+    value: true
+    message: "Project description is required for microservice template"
+  - field: "project_description"
+    rule_type: "min_length"
+    value: 10
+    message: "Project description must be at least 10 characters"
+  - field: "service_count"
+    rule_type: "regex"
+    value: "^[0-9]+$"
+    message: "Service count must be a valid number"
+  - field: "expected_load"
+    rule_type: "enum"
+    value: ["low", "medium", "high", "enterprise"]
+    message: "Expected load must be one of: low, medium, high, enterprise"
+
+created_at: "2024-01-15T00:00:00Z"
+updated_at: "2024-01-15T00:00:00Z"
+version: "1.0.0"
+author: "RedTeam Microservices Security Team"
+tags: ["microservices", "containers", "kubernetes", "service-mesh", "security", "devops"]

@@ -1,0 +1,1 @@
+# Template System for RedTeam Multi-Agent Security Analysis

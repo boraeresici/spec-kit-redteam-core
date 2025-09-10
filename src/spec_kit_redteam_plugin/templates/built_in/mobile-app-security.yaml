@@ -1,0 +1,388 @@
+id: "mobile-app-security"
+name: "Secure Mobile Application"
+description: "Comprehensive security specification for mobile applications covering client-side protection, secure communication, data storage, and mobile-specific threat mitigation."
+
+category: "mobile"
+security_frameworks: ["OWASP", "API_Security"]
+complexity_level: "medium"
+tier_required: "free"
+
+required_agents: ["pm", "technical", "security"]
+optional_agents: ["qa"]
+recommended_agents: ["pm", "technical", "security", "qa"]
+
+estimated_cost: 9.5
+estimated_time_minutes: 100
+
+template_content: |
+  # Secure Mobile Application Security Specification
+  
+  ## Executive Summary
+  This specification outlines security requirements for mobile applications (iOS/Android) covering client-side protection, secure data storage, network communication security, and mobile-specific threat mitigation. The application will implement OWASP Mobile Security best practices and platform-specific security features.
+  
+  ## Mobile Security Architecture
+  
+  ### 1. Application Hardening & Runtime Protection
+  **Priority: Critical**
+  
+  #### Anti-Tampering Measures
+  - **Code obfuscation** to prevent reverse engineering
+  - **Anti-debugging** protection mechanisms
+  - **Root/Jailbreak detection** with appropriate responses
+  - **Runtime Application Self-Protection (RASP)**
+  
+  ```yaml
+  Client Protection:
+    code_protection:
+      - Symbol obfuscation for critical functions
+      - Control flow obfuscation
+      - String encryption for sensitive data
+      - Dead code injection for confusion
+    
+    runtime_checks:
+      - Debugger detection
+      - Emulator detection
+      - Hook detection (Frida, Xposed)
+      - Memory dump prevention
+    
+    integrity_verification:
+      - Application signature validation
+      - Checksum verification of critical components
+      - Certificate pinning validation
+      - Runtime integrity monitoring
+  ```
+  
+  #### Secure Code Practices
+  - **Input validation** on all user inputs
+  - **Output encoding** for displayed data
+  - **Memory management** to prevent buffer overflows
+  - **Secure random number generation**
+  
+  ### 2. Data Protection & Storage Security
+  **Priority: Critical**
+  
+  #### Local Data Storage
+  - **Encrypted local storage** using platform-provided encryption
+  - **Keychain/Keystore** utilization for sensitive data
+  - **No sensitive data** in shared storage areas
+  - **Secure file permissions** and access controls
+  
+  ```yaml
+  Data Storage Strategy:
+    ios_storage:
+      - iOS Keychain for credentials/tokens
+      - Core Data with NSFileProtection
+      - Encrypted SQLite databases
+      - No sensitive data in NSUserDefaults
+    
+    android_storage:
+      - Android Keystore for cryptographic keys
+      - EncryptedSharedPreferences for settings
+      - Room database with SQLCipher
+      - Internal storage with MODE_PRIVATE
+    
+    data_classification:
+      - Public: No protection required
+      - Internal: App-level encryption
+      - Confidential: Hardware-backed encryption
+      - Restricted: Additional authentication required
+  ```
+  
+  #### Data Loss Prevention
+  - **Screen recording/screenshot** protection for sensitive screens
+  - **Copy/paste restrictions** for sensitive data
+  - **Background app snapshot** protection
+  - **Memory dump protection** for sensitive variables
+  
+  ### 3. Network Communication Security
+  **Priority: High**
+  
+  #### Transport Layer Security
+  - **TLS 1.3** minimum requirement for all communications
+  - **Certificate pinning** to prevent man-in-the-middle attacks
+  - **Certificate transparency** validation
+  - **Network Security Config** (Android) / App Transport Security (iOS)
+  
+  ```yaml
+  Network Security Configuration:
+    tls_configuration:
+      - TLS 1.3 minimum version
+      - Strong cipher suite selection
+      - Certificate pinning for API endpoints
+      - Certificate backup pin strategy
+    
+    certificate_management:
+      - Primary certificate pinning
+      - Backup certificate pins
+      - Pin update mechanism
+      - Certificate expiration handling
+    
+    network_policies:
+      - HTTPS-only communication
+      - No cleartext traffic permitted
+      - Domain-specific security policies
+      - Certificate transparency enforcement
+  ```
+  
+  #### API Security Integration
+  - **OAuth 2.0/OIDC** for user authentication
+  - **JWT token** secure storage and transmission
+  - **API rate limiting** awareness and handling
+  - **Request signing** for critical operations
+  
+  ### 4. Authentication & Session Management
+  **Priority: High**
+  
+  #### Multi-Factor Authentication
+  - **Biometric authentication** (Touch ID, Face ID, Fingerprint)
+  - **Device-based factors** (device binding, attestation)
+  - **SMS/TOTP** integration for additional factors
+  - **Risk-based authentication** for suspicious activities
+  
+  ```yaml
+  Authentication Strategy:
+    biometric_auth:
+      - LocalAuthentication framework (iOS)
+      - BiometricPrompt API (Android)
+      - Hardware-backed biometric storage
+      - Fallback authentication methods
+    
+    device_attestation:
+      - Device fingerprinting
+      - SafetyNet attestation (Android)
+      - DeviceCheck framework (iOS)
+      - Hardware security module utilization
+    
+    session_management:
+      - JWT access tokens (short-lived)
+      - Secure refresh token storage
+      - Session timeout policies
+      - Concurrent session limitations
+  ```
+  
+  ### 5. Mobile-Specific Threat Mitigation
+  **Priority: High**
+  
+  #### Platform Security Features
+  - **App sandboxing** leverage and enforcement
+  - **Permission model** following least privilege
+  - **Secure enclaves** utilization for sensitive operations
+  - **Hardware security modules** integration
+  
+  #### Threat Detection & Response
+  ```yaml
+  Threat Detection:
+    device_threats:
+      - Malware detection indicators
+      - Suspicious app installation detection
+      - Device integrity monitoring
+      - Abnormal device behavior analysis
+    
+    network_threats:
+      - SSL kill switch detection
+      - Proxy/VPN detection policies
+      - Suspicious network behavior
+      - Geographic anomaly detection
+    
+    user_behavior:
+      - Unusual usage pattern detection
+      - Velocity checks for transactions
+      - Device location anomalies
+      - Time-based access patterns
+  ```
+  
+  ### 6. Privacy & Compliance
+  **Priority: Medium**
+  
+  #### Data Privacy Implementation
+  - **Data minimization** principles in data collection
+  - **Consent management** for data processing
+  - **Right to deletion** implementation
+  - **Data portability** features
+  
+  #### Regulatory Compliance
+  - **GDPR compliance** for EU users
+  - **CCPA compliance** for California users
+  - **COPPA compliance** for child users
+  - **Platform-specific** privacy requirements (iOS/Android)
+  
+  ## Mobile Development Security Guidelines
+  
+  ### Secure Development Practices
+  
+  #### iOS Security Implementation
+  ```swift
+  // Keychain storage example
+  let keychain = Keychain(service: "com.app.secure")
+  keychain["access_token"] = token
+  
+  // Certificate pinning
+  let pinnedCertificates = ServerTrustPolicy.certificates()
+  let serverTrustPolicies = [
+      "api.example.com": .pinnedCertificates(certificates: pinnedCertificates)
+  ]
+  ```
+  
+  #### Android Security Implementation
+  ```kotlin
+  // Encrypted SharedPreferences
+  val encryptedPrefs = EncryptedSharedPreferences.create(
+      "secure_prefs",
+      masterKeyAlias,
+      context,
+      EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+      EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+  )
+  
+  // Biometric authentication
+  val biometricPrompt = BiometricPrompt(this, executor, authCallback)
+  val promptInfo = BiometricPrompt.PromptInfo.Builder()
+      .setTitle("Biometric Authentication")
+      .setNegativeButtonText("Cancel")
+      .build()
+  ```
+  
+  ### Security Testing Integration
+  - **Static Application Security Testing (SAST)** in CI/CD
+  - **Dynamic Application Security Testing (DAST)** automation
+  - **Interactive Application Security Testing (IAST)** integration
+  - **Mobile penetration testing** procedures
+  
+  ## Implementation Roadmap
+  
+  ### Phase 1: Core Security Foundation (Weeks 1-4)
+  - Basic application hardening implementation
+  - Secure data storage mechanisms
+  - HTTPS-only communication setup
+  - Basic authentication integration
+  
+  ### Phase 2: Advanced Protection (Weeks 5-8)
+  - Certificate pinning implementation
+  - Biometric authentication integration
+  - Anti-tampering measures deployment
+  - Threat detection mechanisms
+  
+  ### Phase 3: Compliance & Optimization (Weeks 9-12)
+  - Privacy compliance implementation
+  - Security testing automation
+  - Performance optimization
+  - Security monitoring and analytics
+  
+  ## Security Testing & Validation
+  
+  ### Mobile Security Testing Checklist
+  - [ ] **Static code analysis** for security vulnerabilities
+  - [ ] **Dynamic analysis** during runtime
+  - [ ] **Network traffic analysis** and interception testing
+  - [ ] **Local data storage** security validation
+  - [ ] **Authentication bypass** testing
+  - [ ] **Session management** security testing
+  - [ ] **Certificate pinning** effectiveness testing
+  - [ ] **Anti-tampering** protection validation
+  - [ ] **Privacy compliance** verification
+  
+  ### Automated Security Scanning
+  ```yaml
+  Security Tools Integration:
+    sast_tools:
+      - SonarQube with security rules
+      - Checkmarx Mobile Security
+      - Veracode Static Analysis
+      - Custom security linters
+    
+    dast_tools:
+      - OWASP ZAP mobile testing
+      - Mobile Security Framework (MobSF)
+      - Qark for Android analysis
+      - iOS security testing tools
+  ```
+  
+  ## Monitoring & Incident Response
+  
+  ### Security Monitoring
+  - **Runtime security events** collection and analysis
+  - **Anomaly detection** for unusual app behavior
+  - **Security metrics** tracking and reporting
+  - **Real-time threat intelligence** integration
+  
+  ### Incident Response Procedures
+  - **Security incident classification** for mobile threats
+  - **Response procedures** for different threat types
+  - **Communication plans** for security notifications
+  - **Recovery procedures** and business continuity
+  
+  ## Compliance Framework
+  
+  ### Mobile Security Standards
+  - [ ] **OWASP Mobile Top 10** compliance verification
+  - [ ] **NIST Mobile Security** guidelines adherence
+  - [ ] **Platform security guidelines** (iOS/Android) compliance
+  - [ ] **Industry-specific** security requirements
+  
+  ### Privacy Regulations
+  - [ ] **GDPR Article 25** - Data Protection by Design
+  - [ ] **CCPA compliance** for data handling
+  - [ ] **COPPA compliance** for child privacy
+  - [ ] **Platform privacy policies** adherence
+  
+  ## Success Metrics
+  
+  ### Security KPIs
+  - **Zero successful** reverse engineering attempts
+  - **100% encrypted** sensitive data storage
+  - **<1% false positive** rate for security controls
+  - **Successful security audit** results
+  - **Zero privacy compliance** violations
+  
+  ### Performance Metrics
+  - **<200ms additional latency** from security controls
+  - **<5% battery impact** from security features
+  - **>99.9% uptime** including security component availability
+  - **User satisfaction** with security features >4.5/5
+
+prompt_template: |
+  Generate a comprehensive mobile application security specification for: {project_description}
+  
+  Focus on these mobile security aspects:
+  - Client-side application protection and hardening
+  - Secure data storage and privacy protection
+  - Network communication security and certificate pinning
+  - Authentication and session management
+  - Mobile-specific threat detection and mitigation
+  - Platform security feature utilization
+  
+  Platform details: {target_platforms}
+  App type: {app_type}
+  Data sensitivity: {data_sensitivity}
+  User authentication: {auth_requirements}
+
+context_variables:
+  project_description: "{{PROJECT_DESCRIPTION}}"
+  target_platforms: "{{TARGET_PLATFORMS}}"
+  app_type: "{{APP_TYPE}}"
+  data_sensitivity: "{{DATA_SENSITIVITY}}"
+  auth_requirements: "{{AUTH_REQUIREMENTS}}"
+
+validation_rules:
+  - field: "project_description"
+    rule_type: "required"
+    value: true
+    message: "Project description is required for mobile security template"
+  - field: "project_description"
+    rule_type: "min_length"
+    value: 10
+    message: "Project description must be at least 10 characters"
+  - field: "target_platforms"
+    rule_type: "required"
+    value: true
+    message: "Target platforms (iOS/Android) must be specified"
+  - field: "data_sensitivity"
+    rule_type: "enum"
+    value: ["low", "medium", "high", "critical"]
+    message: "Data sensitivity must be one of: low, medium, high, critical"
+
+created_at: "2024-01-15T00:00:00Z"
+updated_at: "2024-01-15T00:00:00Z"
+version: "1.0.0"
+author: "RedTeam Mobile Security Team"
+tags: ["mobile", "ios", "android", "client-security", "data-protection", "biometric"]

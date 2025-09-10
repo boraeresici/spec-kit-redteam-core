@@ -1,0 +1,281 @@
+id: "owasp-web-app"
+name: "OWASP Compliant Web Application"
+description: "Comprehensive security specification for web applications following OWASP Top 10 guidelines with authentication, data protection, and secure coding practices."
+
+category: "web"
+security_frameworks: ["OWASP", "API_Security"]
+complexity_level: "medium"
+tier_required: "free"
+
+required_agents: ["pm", "technical", "security"]
+optional_agents: ["qa"]
+recommended_agents: ["pm", "technical", "security", "qa"]
+
+estimated_cost: 8.5
+estimated_time_minutes: 90
+
+template_content: |
+  # OWASP Compliant Web Application Security Specification
+  
+  ## Executive Summary
+  This specification outlines security requirements for a web application that complies with OWASP Top 10 security standards. The application will implement defense-in-depth security measures covering authentication, authorization, data protection, and secure coding practices.
+  
+  ## Security Requirements Overview
+  
+  ### 1. Broken Access Control (A01:2021)
+  **Risk Level: Critical**
+  
+  #### Requirements:
+  - Implement role-based access control (RBAC) with least privilege principle
+  - Server-side authorization checks for all protected resources
+  - Secure session management with proper timeout mechanisms
+  - Access control list (ACL) validation for object-level permissions
+  
+  #### Implementation Guidelines:
+  ```
+  - Use centralized authorization service
+  - Validate user permissions on every request
+  - Implement resource-level access controls
+  - Log all access control failures for monitoring
+  ```
+  
+  #### Test Cases:
+  - Verify horizontal privilege escalation protection
+  - Test vertical privilege escalation scenarios
+  - Validate session timeout and invalidation
+  - Check for insecure direct object references
+  
+  ### 2. Cryptographic Failures (A02:2021)
+  **Risk Level: High**
+  
+  #### Requirements:
+  - Use strong encryption algorithms (AES-256, RSA-2048+)
+  - Implement proper key management and rotation
+  - Encrypt sensitive data at rest and in transit
+  - Use secure random number generation
+  
+  #### Implementation Guidelines:
+  ```
+  - HTTPS everywhere with HSTS headers
+  - Database field-level encryption for PII
+  - Secure key storage (HSM or key vaults)
+  - Regular cryptographic key rotation
+  ```
+  
+  #### Test Cases:
+  - Verify encryption strength and implementation
+  - Test key management procedures
+  - Validate secure transmission protocols
+  - Check for weak cryptographic practices
+  
+  ### 3. Injection (A03:2021)
+  **Risk Level: High**
+  
+  #### Requirements:
+  - Use parameterized queries/prepared statements
+  - Implement input validation and sanitization
+  - Apply output encoding for all user data
+  - Use Content Security Policy (CSP) headers
+  
+  #### Implementation Guidelines:
+  ```
+  - SQL injection prevention with ORMs
+  - XSS protection with output encoding
+  - Command injection prevention
+  - LDAP injection mitigation
+  ```
+  
+  #### Test Cases:
+  - SQL injection testing across all inputs
+  - Cross-site scripting (XSS) vulnerability assessment
+  - Command injection testing
+  - NoSQL injection testing if applicable
+  
+  ### 4. Insecure Design (A04:2021)
+  **Risk Level: High**
+  
+  #### Requirements:
+  - Implement secure development lifecycle (SDLC)
+  - Conduct threat modeling for all components
+  - Use secure design patterns and principles
+  - Regular security architecture reviews
+  
+  #### Implementation Guidelines:
+  ```
+  - Security by design principles
+  - Threat modeling workshops
+  - Secure coding standards
+  - Regular security code reviews
+  ```
+  
+  ### 5. Security Misconfiguration (A05:2021)
+  **Risk Level: Medium**
+  
+  #### Requirements:
+  - Secure default configurations
+  - Regular security updates and patches
+  - Minimal attack surface configuration
+  - Security header implementation
+  
+  #### Implementation Guidelines:
+  ```
+  - Automated security scanning
+  - Configuration management
+  - Security hardening guides
+  - Regular vulnerability assessments
+  ```
+  
+  ### 6. Vulnerable and Outdated Components (A06:2021)
+  **Risk Level: Medium**
+  
+  #### Requirements:
+  - Component inventory management
+  - Regular dependency vulnerability scanning
+  - Automated update processes
+  - Third-party security assessment
+  
+  ### 7. Identification and Authentication Failures (A07:2021)
+  **Risk Level: High**
+  
+  #### Requirements:
+  - Multi-factor authentication (MFA)
+  - Strong password policies
+  - Account lockout mechanisms
+  - Secure session management
+  
+  #### Implementation Guidelines:
+  ```
+  - OAuth 2.0 / OIDC integration
+  - Password hashing with bcrypt/scrypt
+  - Session token security
+  - Brute force protection
+  ```
+  
+  ### 8. Software and Data Integrity Failures (A08:2021)
+  **Risk Level: Medium**
+  
+  #### Requirements:
+  - Code signing and verification
+  - Secure CI/CD pipelines
+  - Data integrity checking
+  - Supply chain security
+  
+  ### 9. Security Logging and Monitoring Failures (A09:2021)
+  **Risk Level: Medium**
+  
+  #### Requirements:
+  - Comprehensive security logging
+  - Real-time monitoring and alerting
+  - Log integrity protection
+  - Incident response procedures
+  
+  #### Implementation Guidelines:
+  ```
+  - Centralized logging system
+  - SIEM integration
+  - Log retention policies
+  - Anomaly detection
+  ```
+  
+  ### 10. Server-Side Request Forgery (A10:2021)
+  **Risk Level: Medium**
+  
+  #### Requirements:
+  - Input validation for URLs
+  - Network segmentation
+  - Allowlist-based URL validation
+  - Response filtering
+  
+  ## Implementation Roadmap
+  
+  ### Phase 1: Foundation (Weeks 1-4)
+  - Set up secure development environment
+  - Implement authentication and authorization
+  - Configure HTTPS and security headers
+  - Set up logging and monitoring
+  
+  ### Phase 2: Core Security (Weeks 5-8)
+  - Implement input validation framework
+  - Add encryption for sensitive data
+  - Configure secure session management
+  - Implement access control mechanisms
+  
+  ### Phase 3: Testing & Validation (Weeks 9-12)
+  - Conduct security testing
+  - Perform penetration testing
+  - Security code review
+  - Compliance validation
+  
+  ### Phase 4: Monitoring & Maintenance (Ongoing)
+  - Continuous security monitoring
+  - Regular vulnerability assessments
+  - Security updates and patches
+  - Incident response procedures
+  
+  ## Compliance Checklist
+  
+  ### OWASP Top 10 Compliance
+  - [ ] A01: Broken Access Control - Implemented
+  - [ ] A02: Cryptographic Failures - Implemented
+  - [ ] A03: Injection - Implemented
+  - [ ] A04: Insecure Design - Implemented
+  - [ ] A05: Security Misconfiguration - Implemented
+  - [ ] A06: Vulnerable Components - Implemented
+  - [ ] A07: Authentication Failures - Implemented
+  - [ ] A08: Data Integrity Failures - Implemented
+  - [ ] A09: Logging/Monitoring Failures - Implemented
+  - [ ] A10: Server-Side Request Forgery - Implemented
+  
+  ### Additional Security Measures
+  - [ ] Security headers implementation (CSP, HSTS, etc.)
+  - [ ] Rate limiting and DDoS protection
+  - [ ] Data privacy compliance (GDPR/CCPA if applicable)
+  - [ ] Backup and recovery procedures
+  - [ ] Security awareness training for team
+  
+  ## Success Criteria
+  
+  - Zero high-severity security vulnerabilities in production
+  - OWASP Top 10 compliance verification
+  - Successful penetration testing results
+  - Automated security scanning integration
+  - Security incident response plan tested and documented
+
+prompt_template: |
+  Generate a comprehensive OWASP-compliant security specification for: {project_description}
+  
+  Focus on these security aspects:
+  - Authentication and authorization mechanisms
+  - Data protection and encryption requirements
+  - Input validation and injection prevention
+  - Secure coding practices and architecture
+  
+  Project context: {context}
+  Security requirements: {security_requirements}
+  Compliance needs: {compliance_frameworks}
+
+context_variables:
+  project_description: "{{PROJECT_DESCRIPTION}}"
+  context: "{{PROJECT_CONTEXT}}"
+  security_requirements: "{{SECURITY_REQUIREMENTS}}"
+  compliance_frameworks: "{{COMPLIANCE_FRAMEWORKS}}"
+
+validation_rules:
+  - field: "project_description"
+    rule_type: "required"
+    value: true
+    message: "Project description is required for OWASP template"
+  - field: "project_description" 
+    rule_type: "min_length"
+    value: 10
+    message: "Project description must be at least 10 characters"
+  - field: "security_requirements"
+    rule_type: "required"
+    value: true
+    message: "Security requirements must be specified"
+
+created_at: "2024-01-15T00:00:00Z"
+updated_at: "2024-01-15T00:00:00Z"
+version: "1.0.0"
+author: "RedTeam Security Team"
+tags: ["owasp", "web", "security", "compliance", "authentication"]

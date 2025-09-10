@@ -1,0 +1,305 @@
+id: "basic-api-security"
+name: "Secure RESTful API"
+description: "Essential security specification for RESTful APIs including authentication, rate limiting, data validation, and secure communication protocols."
+
+category: "api"
+security_frameworks: ["API_Security", "OWASP"]
+complexity_level: "low"
+tier_required: "free"
+
+required_agents: ["pm", "technical"]
+optional_agents: ["security", "qa"]
+recommended_agents: ["pm", "technical", "security"]
+
+estimated_cost: 5.5
+estimated_time_minutes: 60
+
+template_content: |
+  # Secure RESTful API Security Specification
+  
+  ## Executive Summary
+  This specification defines security requirements for a RESTful API service, covering authentication, authorization, data protection, and monitoring. The API will implement industry-standard security practices to protect against common vulnerabilities and ensure secure data transmission.
+  
+  ## API Security Architecture
+  
+  ### 1. Authentication & Authorization
+  **Priority: Critical**
+  
+  #### OAuth 2.0 / JWT Implementation
+  - **Token-based authentication** with JWT (JSON Web Tokens)
+  - **Refresh token rotation** for long-lived sessions
+  - **Scope-based authorization** for granular permissions
+  - **Token expiration** with configurable TTL
+  
+  #### Implementation Requirements:
+  ```yaml
+  Authentication:
+    - JWT tokens with RS256 signing
+    - Access token TTL: 15 minutes
+    - Refresh token TTL: 7 days
+    - Token blacklisting for logout
+    
+  Authorization:
+    - Role-based access control (RBAC)
+    - Resource-level permissions
+    - Scope validation on each request
+    - Rate limiting per user/role
+  ```
+  
+  #### API Key Management
+  - **Secure API key generation** with cryptographic randomness
+  - **Key rotation policies** (quarterly or on-demand)
+  - **Key usage tracking** and analytics
+  - **Key revocation mechanisms**
+  
+  ### 2. Data Protection & Validation
+  **Priority: High**
+  
+  #### Input Validation Framework
+  - **Request schema validation** using JSON Schema
+  - **Data type validation** and sanitization
+  - **Size limits** for request payloads
+  - **SQL injection prevention** with parameterized queries
+  
+  ```json
+  Validation Rules:
+  {
+    "max_request_size": "10MB",
+    "required_headers": ["Content-Type", "Authorization"],
+    "allowed_content_types": ["application/json", "multipart/form-data"],
+    "input_sanitization": "enabled"
+  }
+  ```
+  
+  #### Response Security
+  - **Sensitive data filtering** in API responses
+  - **Error message sanitization** (no internal details)
+  - **Response size limiting** to prevent data exposure
+  - **JSON response validation**
+  
+  ### 3. Secure Communication
+  **Priority: Critical**
+  
+  #### HTTPS Configuration
+  - **TLS 1.3** minimum requirement
+  - **HSTS headers** with long max-age
+  - **Certificate pinning** for mobile clients
+  - **Perfect Forward Secrecy** (PFS)
+  
+  #### Security Headers
+  ```yaml
+  Required Headers:
+    - Content-Security-Policy: "default-src 'none'"
+    - X-Content-Type-Options: "nosniff"
+    - X-Frame-Options: "DENY"
+    - X-XSS-Protection: "1; mode=block"
+    - Referrer-Policy: "strict-origin-when-cross-origin"
+    - Permissions-Policy: "geolocation=(), microphone=(), camera=()"
+  ```
+  
+  ### 4. Rate Limiting & DDoS Protection
+  **Priority: High**
+  
+  #### Rate Limiting Strategy
+  - **Token bucket algorithm** for smooth rate limiting
+  - **Per-endpoint rate limits** based on resource intensity
+  - **User-tier based limits** (free vs premium)
+  - **Burst limit handling** with temporary blocking
+  
+  ```yaml
+  Rate Limits:
+    authentication:
+      requests_per_minute: 10
+      burst_limit: 20
+    
+    data_retrieval:
+      requests_per_minute: 100
+      burst_limit: 150
+    
+    data_modification:
+      requests_per_minute: 30
+      burst_limit: 50
+  ```
+  
+  #### DDoS Mitigation
+  - **IP-based rate limiting** with progressive penalties
+  - **Geolocation filtering** if applicable
+  - **Request pattern analysis** for bot detection
+  - **Graceful degradation** under high load
+  
+  ### 5. API Monitoring & Logging
+  **Priority: Medium**
+  
+  #### Security Event Logging
+  - **All authentication attempts** (success/failure)
+  - **Authorization failures** with context
+  - **Rate limit violations** with source IP
+  - **Suspicious request patterns**
+  
+  #### Monitoring Metrics
+  ```yaml
+  Key Metrics:
+    - Request volume per endpoint
+    - Authentication success/failure rates
+    - Response times and error rates
+    - Rate limit hit rates
+    - Geographic request distribution
+  ```
+  
+  #### Alerting Rules
+  - **Failed authentication spike** (>10 failures/minute)
+  - **Rate limit violations** (>50 violations/hour)
+  - **Unusual traffic patterns** (geographic/temporal anomalies)
+  - **Error rate increases** (>5% error rate)
+  
+  ## API Endpoint Security Guidelines
+  
+  ### RESTful Security Patterns
+  
+  #### GET Requests
+  - **No sensitive data in URLs** (use POST for sensitive queries)
+  - **Caching headers** appropriate for data sensitivity
+  - **Query parameter validation** and size limits
+  - **Response filtering** based on user permissions
+  
+  #### POST/PUT/PATCH Requests
+  - **Request body validation** against schema
+  - **Idempotency keys** for duplicate request handling
+  - **Atomic operations** with proper rollback
+  - **Business logic validation** before data modification
+  
+  #### DELETE Requests
+  - **Soft delete implementation** for audit trails
+  - **Cascade delete validation** to prevent data loss
+  - **Permission verification** for resource ownership
+  - **Confirmation mechanisms** for critical deletions
+  
+  ### Error Handling Security
+  ```yaml
+  Error Response Strategy:
+    - Generic error messages for clients
+    - Detailed logging for internal monitoring
+    - No stack traces in production responses
+    - Consistent error format across endpoints
+  
+  Error Categories:
+    400: "Invalid request format"
+    401: "Authentication required"
+    403: "Insufficient permissions"
+    429: "Rate limit exceeded"
+    500: "Internal server error"
+  ```
+  
+  ## Implementation Phases
+  
+  ### Phase 1: Core Security (Week 1-2)
+  - HTTPS setup with proper TLS configuration
+  - JWT authentication implementation
+  - Basic rate limiting
+  - Request validation framework
+  
+  ### Phase 2: Advanced Protection (Week 3-4)
+  - OAuth 2.0 full implementation
+  - Advanced rate limiting with tiers
+  - Comprehensive input validation
+  - Security headers configuration
+  
+  ### Phase 3: Monitoring & Optimization (Week 5-6)
+  - Logging and monitoring setup
+  - Performance optimization
+  - Security testing and validation
+  - Documentation and API specification
+  
+  ## API Documentation Security
+  
+  ### OpenAPI/Swagger Security
+  - **Authentication schemes** properly documented
+  - **Security requirements** per endpoint
+  - **Rate limiting information** in documentation
+  - **Example requests/responses** sanitized
+  
+  ### Developer Guidelines
+  - **Authentication flow examples**
+  - **Error handling best practices**
+  - **Rate limiting guidance**
+  - **Security considerations** for each endpoint
+  
+  ## Testing & Validation
+  
+  ### Security Testing Checklist
+  - [ ] Authentication bypass attempts
+  - [ ] Authorization escalation testing
+  - [ ] Input validation testing (fuzzing)
+  - [ ] Rate limiting effectiveness
+  - [ ] SSL/TLS configuration validation
+  - [ ] API endpoint enumeration resistance
+  - [ ] Error message information leakage
+  - [ ] Business logic vulnerability testing
+  
+  ### Performance Testing
+  - [ ] Load testing under normal conditions
+  - [ ] Stress testing with rate limiting
+  - [ ] DDoS simulation and response
+  - [ ] Authentication performance testing
+  
+  ## Compliance & Standards
+  
+  ### API Security Standards
+  - [ ] OWASP API Security Top 10 compliance
+  - [ ] OAuth 2.0 RFC 6749 compliance
+  - [ ] JWT RFC 7519 compliance
+  - [ ] OpenAPI 3.0 security specification
+  
+  ### Data Protection
+  - [ ] PII handling procedures
+  - [ ] Data retention policies
+  - [ ] GDPR compliance (if applicable)
+  - [ ] Data encryption at rest and in transit
+  
+  ## Success Metrics
+  
+  - **Zero successful authentication bypasses**
+  - **<1% false positive rate** for security controls
+  - **<100ms additional latency** from security measures
+  - **>99.9% API uptime** including during attacks
+  - **Successful external security audit**
+
+prompt_template: |
+  Generate a secure RESTful API specification for: {project_description}
+  
+  Focus on these API security aspects:
+  - Authentication and authorization mechanisms
+  - Input validation and data protection
+  - Rate limiting and abuse prevention
+  - Secure communication protocols
+  - Monitoring and incident response
+  
+  API context: {api_context}
+  Expected traffic: {expected_load}
+  Data sensitivity: {data_sensitivity}
+
+context_variables:
+  project_description: "{{PROJECT_DESCRIPTION}}"
+  api_context: "{{API_CONTEXT}}"
+  expected_load: "{{EXPECTED_LOAD}}"
+  data_sensitivity: "{{DATA_SENSITIVITY}}"
+
+validation_rules:
+  - field: "project_description"
+    rule_type: "required"
+    value: true
+    message: "Project description is required for API security template"
+  - field: "project_description"
+    rule_type: "min_length"
+    value: 5
+    message: "Project description must be at least 5 characters"
+  - field: "expected_load"
+    rule_type: "enum"
+    value: ["low", "medium", "high", "enterprise"]
+    message: "Expected load must be one of: low, medium, high, enterprise"
+
+created_at: "2024-01-15T00:00:00Z"
+updated_at: "2024-01-15T00:00:00Z"
+version: "1.0.0"
+author: "RedTeam API Security Team"
+tags: ["api", "rest", "authentication", "rate-limiting", "security"]

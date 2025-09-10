@@ -27,10 +27,16 @@ from ..budget_ui import BudgetManager
 from ..error_handler import error_handler, PluginError, user_input_error, api_error
 from ..version_manager import version_manager
 from ..recovery_manager import recovery_manager, with_recovery
+from ..templates.template_engine import TemplateManager, TemplateNotFoundError, TemplateAccessDeniedError
+from ..templates.recommendation_engine import TemplateRecommendationEngine
+from .template_cli import app as template_app
 
 
 app = typer.Typer(name="collab", help="Multi-Agent Collaborative AI")
 console = Console()
+
+# Add template commands as a subcommand
+app.add_typer(template_app, name="templates", help="Template management commands")
 
 
 def _validate_generate_inputs(description: str, agents: List[str], budget: float, complexity: str):
@@ -268,24 +274,125 @@ class BudgetManager:
 @app.command("generate")
 async def generate_collaborative_spec(
     description: str = typer.Argument(..., help="Feature description"),
-    agents: List[str] = typer.Option(["pm", "technical"], "--agent", "-a", help="Agents to include"),
+    agents: List[str] = typer.Option([], "--agent", "-a", help="Agents to include"),
     budget: float = typer.Option(50.0, "--budget", "-b", help="Session budget in USD"),
     complexity: str = typer.Option("medium", "--complexity", "-c", help="Complexity level (simple/medium/complex)"),
+    template: Optional[str] = typer.Option(None, "--template", "-t", help="Security template to use"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file path"),
     parallel: bool = typer.Option(True, "--parallel/--sequential", help="Enable parallel agent execution"),
     cache: bool = typer.Option(True, "--cache/--no-cache", help="Enable response caching"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+    user_tier: str = typer.Option("free", "--tier", help="User subscription tier"),
 ):
     """Generate specification using collaborative AI agents"""
     
+    # Initialize template manager
+    template_manager = TemplateManager()
+    selected_template = None
+    template_context = {}
+    
     try:
-        # Input validation with enhanced error messages
+        # Handle template selection and recommendation
+        if template:
+            # User specified a template
+            try:
+                selected_template = template_manager.get_template(template, user_tier)
+                console.print(f"📋 Using template: [cyan]{selected_template.name}[/cyan]")
+                
+                # Use template's recommended agents if none specified
+                if not agents:
+                    agents = selected_template.recommended_agents or selected_template.required_agents
+                    console.print(f"🤖 Using template agents: [blue]{', '.join(agents)}[/blue]")
+                
+                # Prepare template context
+                template_context = {
+                    "PROJECT_DESCRIPTION": description,
+                    "PROJECT_CONTEXT": f"Complexity: {complexity}, Budget: ${budget}",
+                    "SECURITY_REQUIREMENTS": "Standard security requirements",
+                    "COMPLIANCE_FRAMEWORKS": [fw.value for fw in selected_template.security_frameworks]
+                }
+                
+            except TemplateNotFoundError as e:
+                console.print(f"[red]Template not found: {template}[/red]")
+                console.print("Available templates:")
+                templates = template_manager.list_templates(user_tier=user_tier)
+                for t in templates[:5]:
+                    console.print(f"  • {t.id}: {t.name}")
+                raise typer.Exit(1)
+                
+            except TemplateAccessDeniedError as e:
+                console.print(f"[red]{e}[/red]")
+                console.print("Upgrade your subscription to access premium templates.")
+                raise typer.Exit(1)
+                
+        elif not agents:
+            # No template and no agents - provide recommendations
+            console.print("🔍 [yellow]No template or agents specified. Getting recommendations...[/yellow]")
+            
+            recommendation_engine = TemplateRecommendationEngine(template_manager)
+            recommendations = recommendation_engine.recommend_templates(
+                description, user_tier=user_tier, max_recommendations=3
+            )
+            
+            if recommendations:
+                console.print("\n📋 [bold cyan]Recommended templates:[/bold cyan]")
+                
+                for i, rec in enumerate(recommendations, 1):
+                    confidence_pct = int(rec.confidence_score * 100)
+                    console.print(f"{i}. [bold]{rec.template.name}[/bold] ({confidence_pct}% match)")
+                    console.print(f"   Cost: ${rec.estimated_cost:.2f} | Agents: {', '.join(rec.template.recommended_agents)}")
+                    console.print(f"   {rec.template.description[:80]}...")
+                
+                choice = typer.prompt("\nSelect template number (or 0 to skip)", type=int, default=0)
+                
+                if choice > 0 and choice <= len(recommendations):
+                    selected_template = recommendations[choice - 1].template
+                    agents = selected_template.recommended_agents or selected_template.required_agents
+                    
+                    console.print(f"✅ Selected: [cyan]{selected_template.name}[/cyan]")
+                    console.print(f"🤖 Using agents: [blue]{', '.join(agents)}[/blue]")
+                    
+                    # Prepare template context
+                    template_context = {
+                        "PROJECT_DESCRIPTION": description,
+                        "PROJECT_CONTEXT": f"Complexity: {complexity}, Budget: ${budget}",
+                        "SECURITY_REQUIREMENTS": "Standard security requirements",
+                        "COMPLIANCE_FRAMEWORKS": [fw.value for fw in selected_template.security_frameworks]
+                    }
+                else:
+                    # Use default agents if no template selected
+                    agents = ["pm", "technical"]
+                    console.print(f"Using default agents: [blue]{', '.join(agents)}[/blue]")
+            else:
+                # No recommendations, use defaults
+                agents = ["pm", "technical"] 
+                console.print(f"Using default agents: [blue]{', '.join(agents)}[/blue]")
+        
+        # Input validation with enhanced error messages (agents list now populated)
         _validate_generate_inputs(description, agents, budget, complexity)
         
     except PluginError as e:
         if not error_handler.handle_error(e, {"command": "generate"}):
             raise typer.Exit(1)
         return
+    
+    # Enhance description with template content if available
+    final_description = description
+    if selected_template:
+        # Use template's prompt template if available
+        if selected_template.prompt_template:
+            try:
+                final_description = selected_template.prompt_template.format(**template_context)
+                if verbose:
+                    console.print(f"[dim]Enhanced description with template context[/dim]")
+            except KeyError as e:
+                console.print(f"[yellow]Warning: Template context missing key {e}, using original description[/yellow]")
+        
+        # Add template content as reference
+        final_description += f"\n\n## Template Reference\n{selected_template.template_content[:1000]}..."
+        
+        if verbose:
+            console.print(f"\n[dim]Final enhanced description length: {len(final_description)} characters[/dim]")
     
     # Budget confirmation
     budget_manager = BudgetManager(console)
@@ -361,13 +468,13 @@ async def generate_collaborative_spec(
                     
                     # Run async generation
                     result = await run_async_collaborative_generation(
-                        orchestrator, description, agents, budget, complexity
+                        orchestrator, final_description, agents, budget, complexity
                     )
                 else:
                     # Run sync generation
                     result = asyncio.run(
                         run_collaborative_generation(
-                            orchestrator, description, agents, budget, 
+                            orchestrator, final_description, agents, budget, 
                             progress_tracker, update_live_progress
                         )
                     )
@@ -419,16 +526,17 @@ async def generate_collaborative_spec(
         # Try recovery first
         context = {
             "command": "generate",
-            "description": description[:100] + "..." if len(description) > 100 else description,
+            "description": final_description[:100] + "..." if len(final_description) > 100 else final_description,
             "agents": agents,
             "budget": budget,
+            "template": selected_template.id if selected_template else None,
             "verbose": verbose
         }
         
         # Attempt recovery with the generation function
         async def recovery_operation():
             return await run_collaborative_generation(
-                orchestrator, description, agents, budget, 
+                orchestrator, final_description, agents, budget, 
                 progress_tracker, lambda: None
             )
         
