@@ -7,6 +7,7 @@ Provides project type selection, security requirements questionnaire,
 and configuration persistence with progress saving.
 """
 
+import asyncio
 import json
 import time
 from dataclasses import dataclass, field, asdict
@@ -144,7 +145,7 @@ class SpecificationWizard:
         self.auto_save = True
         self.save_interval = 300  # seconds
         
-    def start_wizard(self, resume_session_id: Optional[str] = None) -> ProjectConfiguration:
+    async def start_wizard(self, resume_session_id: Optional[str] = None) -> ProjectConfiguration:
         """Start interactive specification wizard"""
         
         try:
@@ -161,7 +162,7 @@ class SpecificationWizard:
                     self._save_session(session)
                 
                 # Execute current step
-                success = self._execute_step(session)
+                success = await self._execute_step(session)
                 
                 if success:
                     # Move to next step
@@ -224,7 +225,7 @@ class SpecificationWizard:
         
         return session
     
-    def _execute_step(self, session: WizardSession) -> bool:
+    async def _execute_step(self, session: WizardSession) -> bool:
         """Execute current wizard step"""
         
         step_methods = {
@@ -240,12 +241,12 @@ class SpecificationWizard:
         
         step_method = step_methods.get(session.current_step)
         if step_method:
-            return step_method(session)
+            return await step_method(session)
         else:
             self.console.print(f"[red]Unknown wizard step: {session.current_step}[/red]")
             return False
     
-    def _step_welcome(self, session: WizardSession) -> bool:
+    async def _step_welcome(self, session: WizardSession) -> bool:
         """Welcome step - introduction and basic info"""
         
         self.console.print("\n" + "="*60)
@@ -273,7 +274,7 @@ class SpecificationWizard:
         
         return Confirm.ask("\n[bold]Continue to project type selection?[/bold]", default=True)
     
-    def _step_project_type(self, session: WizardSession) -> bool:
+    async def _step_project_type(self, session: WizardSession) -> bool:
         """Project type selection step"""
         
         self.console.print("\n" + "="*60)
@@ -316,7 +317,7 @@ class SpecificationWizard:
         
         return True
     
-    def _step_project_details(self, session: WizardSession) -> bool:
+    async def _step_project_details(self, session: WizardSession) -> bool:
         """Project details collection step"""
         
         self.console.print("\n" + "="*60)
@@ -364,7 +365,7 @@ class SpecificationWizard:
         
         return True
     
-    def _step_security_requirements(self, session: WizardSession) -> bool:
+    async def _step_security_requirements(self, session: WizardSession) -> bool:
         """Security requirements questionnaire step"""
         
         self.console.print("\n" + "="*60)
@@ -432,7 +433,7 @@ class SpecificationWizard:
         
         return True
     
-    def _step_agent_selection(self, session: WizardSession) -> bool:
+    async def _step_agent_selection(self, session: WizardSession) -> bool:
         """Agent selection and prioritization step"""
         
         self.console.print("\n" + "="*60)
@@ -504,7 +505,7 @@ class SpecificationWizard:
         
         return True
     
-    def _step_budget_configuration(self, session: WizardSession) -> bool:
+    async def _step_budget_configuration(self, session: WizardSession) -> bool:
         """Budget and constraints configuration step"""
         
         self.console.print("\n" + "="*60)
@@ -565,7 +566,7 @@ class SpecificationWizard:
         
         return True
     
-    def _step_template_recommendation(self, session: WizardSession) -> bool:
+    async def _step_template_recommendation(self, session: WizardSession) -> bool:
         """Template recommendation and selection step"""
         
         self.console.print("\n" + "="*60)
@@ -574,6 +575,9 @@ class SpecificationWizard:
         
         # Generate recommendations based on collected info
         self.console.print("[dim]🔍 Analyzing your requirements and finding suitable templates...[/dim]")
+        
+        # Simulate async AI analysis (future enhancement)
+        await asyncio.sleep(0.5)  # Brief pause to show async nature
         
         recommendations = self.recommendation_engine.recommend_templates(
             description=session.configuration.project_description,
@@ -640,7 +644,7 @@ class SpecificationWizard:
         
         return True
     
-    def _step_final_confirmation(self, session: WizardSession) -> bool:
+    async def _step_final_confirmation(self, session: WizardSession) -> bool:
         """Final confirmation and summary step"""
         
         self.console.print("\n" + "="*60)
@@ -818,7 +822,7 @@ class SpecificationWizard:
 
 
 # Convenience function for CLI integration
-def run_specification_wizard(resume_session_id: Optional[str] = None) -> Optional[ProjectConfiguration]:
+async def run_specification_wizard(resume_session_id: Optional[str] = None) -> Optional[ProjectConfiguration]:
     """Run the interactive specification wizard"""
     wizard = SpecificationWizard()
-    return wizard.start_wizard(resume_session_id)
+    return await wizard.start_wizard(resume_session_id)

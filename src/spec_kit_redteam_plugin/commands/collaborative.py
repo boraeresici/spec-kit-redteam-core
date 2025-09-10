@@ -798,9 +798,12 @@ def interactive_wizard(
         title="Welcome"
     ))
     
+    async def run_wizard_async():
+        return await run_specification_wizard(resume)
+    
     try:
         # Run the wizard
-        config = run_specification_wizard(resume)
+        config = asyncio.run(run_wizard_async())
         
         if not config:
             console.print("[yellow]Wizard was cancelled or interrupted.[/yellow]")

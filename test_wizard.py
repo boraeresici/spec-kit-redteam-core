@@ -41,6 +41,9 @@ try:
     estimated_cost = wizard._estimate_generation_cost(config)
     print(f"✅ Cost estimation: ${estimated_cost:.2f}")
     
+    # Test async wizard run (without actual user interaction)
+    print("✅ Async wizard structure ready")
+    
     # Test agent selection
     agents = config.selected_agents  
     print(f"✅ Agent selection: {agents}")

@@ -27,6 +27,7 @@ from ..templates.recommendation_engine import (
 from .specification_wizard import (
     SpecificationWizard, run_specification_wizard, ProjectConfiguration
 )
+import asyncio
 
 app = typer.Typer(help="Template management and selection commands")
 console = Console()
@@ -411,7 +412,7 @@ def specification_wizard(
         if Confirm.ask("\nWould you like to resume a session?", default=False):
             session_id = Prompt.ask("Enter session ID to resume")
             try:
-                config = wizard.start_wizard(session_id)
+                config = asyncio.run(wizard.start_wizard(session_id))
                 if config:
                     _display_wizard_completion(config)
             except Exception as e:
@@ -428,7 +429,7 @@ def specification_wizard(
             title="Welcome"
         ))
         
-        config = wizard.start_wizard(resume)
+        config = asyncio.run(wizard.start_wizard(resume))
         
         if config:
             _display_wizard_completion(config)
